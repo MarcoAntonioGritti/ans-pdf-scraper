@@ -1,59 +1,63 @@
 import os
-import time
-import requests
-from http import HTTPStatus as H
-from compress import compactar_pdfs
+import asyncio
+import aiohttp
+import aiofiles
+from http import HTTPStatus
+from compress import compactar_pdfs  # Função externa para compactar PDFs
 
-# Diretório de saída
+# Configurações de diretórios
 PASTA_PDF = "../data"
 
-# Lista dos PDFs desejados com os links diretos
+# Lista de URLs para download
 PDFS_DESEJADOS = [
     "https://www.gov.br/ans/pt-br/acesso-a-informacao/participacao-da-sociedade/atualizacao-do-rol-de-procedimentos/Anexo_I_Rol_2021RN_465.2021_RN627L.2024.pdf",
     "https://www.gov.br/ans/pt-br/acesso-a-informacao/participacao-da-sociedade/atualizacao-do-rol-de-procedimentos/Anexo_II_DUT_2021_RN_465.2021_RN628.2025_RN629.2025.pdf"
 ]
 
 # Headers para evitar bloqueios
-headers = {
+HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 }
 
-# Criar a pasta caso não exista
-if not os.path.exists(PASTA_PDF):
-    os.makedirs(PASTA_PDF)
+# Criar diretório, se necessário
+os.makedirs(PASTA_PDF, exist_ok=True)
 
-def limpar_pdfs():
-    """Remove todos os PDFs existentes na pasta antes de baixar novos."""
-    if os.path.exists(PASTA_PDF): # Verifica se a pasta existe
-        for arquivo in os.listdir(PASTA_PDF): #Interage com os arquivos da pasta
-            if arquivo.endswith(".pdf"): # Identifica os arquivos PDF
-                os.remove(os.path.join(PASTA_PDF, arquivo))# Remove os arquivos PDF
-                print(f"🗑️ PDF removido: {arquivo}")
+# Remove todos os PDFs da pasta antes de baixar novos."
+async def limpar_pdfs():
+    arquivos_pdf = [f for f in os.listdir(PASTA_PDF) if f.endswith(".pdf")]
+    for arquivo in arquivos_pdf:
+        os.remove(os.path.join(PASTA_PDF, arquivo))
+        print(f"🗑️ PDF removido: {arquivo}")
 
-def baixar_pdfs():
-    """Baixa os PDFs diretamente dos links desejados."""
-    for link in PDFS_DESEJADOS:
-        nome_arquivo = link.split("/")[-1]  # Extrai o nome do arquivo
+# Baixa um único PDF de forma assíncrona."
+async def baixar_pdf(session, url):
+    nome_arquivo = os.path.basename(url)  # Extrai o nome do arquivo
+    caminho_arquivo = os.path.join(PASTA_PDF, nome_arquivo)
 
-        print(f"📥 Baixando PDF: {link}")
-        resposta = requests.get(link, headers=headers, stream=True)# Faz uma requisição GET para o link
+    print(f"📥 Baixando: {nome_arquivo}...")
 
-        if resposta.status_code == H.OK:
-            if 'application/pdf' in resposta.headers.get('Content-Type', ''):# Verifica se o conteúdo é um PDF
-                caminho_arquivo = os.path.join(PASTA_PDF, nome_arquivo)# Prepara o caminho para salvar o arquivo
-                with open(caminho_arquivo, "wb") as f:  # Abrir arquivo para escrita binária
-                    for chunk in resposta.iter_content(1024):# Carrega o conteúdo do PDF em chunks de 1024 bytes
-                        f.write(chunk)
-                print(f"✅ PDF baixado com sucesso: {caminho_arquivo}")
+    try:
+        async with session.get(url, headers=HEADERS) as resposta:
+            if resposta.status == HTTPStatus.OK and 'application/pdf' in resposta.headers.get('Content-Type', ''):
+                async with aiofiles.open(caminho_arquivo, "wb") as f:
+                    async for chunk in resposta.content.iter_chunked(1024):
+                        await f.write(chunk)
+                print(f"✅ Download concluído: {nome_arquivo}")
             else:
-                print(f"❌ O conteúdo de {link} não é um PDF válido.")
-        else:
-            print(f"❌ Erro ao baixar {nome_arquivo}, Status Code: {resposta.status_code}")
+                print(f"⚠️ O link {url} não contém um PDF válido. Status: {resposta.status}")
 
-        # Espera 2 segundos entre os downloads para evitar bloqueio
-        time.sleep(2)
+    except Exception as e:
+        print(f"❌ Erro ao baixar {nome_arquivo}: {e}")
+
+# Baixa todos os PDFs da lista de forma assíncrona.
+async def baixar_pdfs():
+    async with aiohttp.ClientSession() as session:
+        await asyncio.gather(*(baixar_pdf(session, url) for url in PDFS_DESEJADOS))
+
+async def main():
+    await limpar_pdfs()  #  Remove PDFs antigos
+    await baixar_pdfs()  #  Faz download dos PDFs
+    compactar_pdfs()  #  Compacta os PDFs baixados
 
 if __name__ == "__main__":
-    limpar_pdfs()  # Apaga os PDFs antigos antes de baixar novos
-    baixar_pdfs()  # Baixa os novos PDFs
-    compactar_pdfs()  # Compacta os PDFs baixados em um arquivo ZIP
+    asyncio.run(main())  #  Executa a aplicação assíncrona
