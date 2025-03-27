@@ -1,6 +1,3 @@
-# Projeto de Web Scraping para Download e Compactação de PDFs
-
-Este projeto realiza o download automático de arquivos PDF de páginas da web e os compacta em um arquivo ZIP. Ele foi desenvolvido para simplificar o processo de coleta e organização de documentos.
 
 ---
 
@@ -75,30 +72,3 @@ poetry run python -m src.main
 - Respeite os **Termos de Serviço** dos sites que você está acessando.
 
 ---
-
-## 📖 Contribuição
-
-Contribuições são bem-vindas! Siga os passos abaixo para contribuir:
-
-1. Faça um fork do repositório.
-2. Crie uma branch para sua feature:
-   ```bash
-   git checkout -b minha-feature
-   ```
-3. Faça commit das suas alterações:
-   ```bash
-   git commit -m "Minha nova feature"
-   ```
-4. Envie para o repositório remoto:
-   ```bash
-   git push origin minha-feature
-   ```
-5. Abra um Pull Request.
-
----
-
-## 📞 Contato
-
-- **Autor**: Marco Antônio
-- **Email**: marco_gritti15@hotmail.com
-- **LinkedIn**: (https://www.linkedin.com/in/marco-antonio-gritti-pazza-091938232/)
